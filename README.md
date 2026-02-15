@@ -109,6 +109,16 @@ python lunar.py setup
 python lunar.py collect_data
 ```
 
+---
+
+### Aimbot/trigger not moving or firing in-game?
+Many games block software mouse input (ddxoft, SendInput, mouse_event). Use **Arduino as a hardware mouse** so the game sees a real USB device:
+
+1. Get an Arduino Leonardo, Micro, or Pro Micro.
+2. Flash the sketch in `lib/arduino/arduino_mouse.ino` (see `lib/arduino/README.md`).
+3. In `lib/config/config.json` set `"mouse_method": "arduino"` and `"arduino_port": "COM3"` (your COM port).
+4. `pip install pyserial`, then run as usual.
+
 </details>
 
 ---

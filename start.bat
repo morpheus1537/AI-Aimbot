@@ -1,25 +1,29 @@
 @echo off
-:: Check for permissions
->nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+setlocal
+title Lunar LITE - AI Aimbot
 
-:: If error flag set, we do not have admin.
-if '%errorlevel%' NEQ '0' (
-    echo Requesting administrative privileges...
-    goto UACPrompt
-) else ( goto gotAdmin )
+:: Require admin: if not elevated, re-launch as admin and exit
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Requesting administrator rights...
+    echo.
+    powershell -Command "Start-Process '%~f0' -ArgumentList '%*' -Verb RunAs"
+    exit /b
+)
 
-:UACPrompt
-    echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
-    set params = %*:"=""
-    echo UAC.ShellExecute "cmd.exe", "/c %~s0 %params%", "", "runas", 1 >> "%temp%\getadmin.vbs"
+:: Ensure we run from the folder where this batch file lives
+cd /d "%~dp0"
 
-    "%temp%\getadmin.vbs"
-    del "%temp%\getadmin.vbs"
-    exit /B
+:: Optional: show that we have admin
+echo Running as Administrator.
+echo Starting Lunar LITE...
+echo.
 
-:gotAdmin
-    pushd "%CD%"
-    CD /D "%~dp0"
-:: Run
-python lunar.py
-pause >nul
+python lunar.py --debug
+if %errorlevel% neq 0 (
+    echo.
+    echo Python exited with error. Make sure Python is installed and run install_requirements.bat first.
+    pause
+) else (
+    pause
+)
