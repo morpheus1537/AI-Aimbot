@@ -201,10 +201,16 @@ def run_gui():
     detection_confidence_var = tk.StringVar(value=str(cfg.get("detection_confidence", 0.45)))
     target_smoothing_var = tk.StringVar(value=str(cfg.get("target_smoothing", 0.5)))
     stick_radius_var = tk.StringVar(value=str(cfg.get("stick_radius", 70)))
+    coast_frames_var = tk.StringVar(value=str(cfg.get("coast_frames", 8)))
+    prediction_factor_var = tk.StringVar(value=str(cfg.get("prediction_factor", 0.4)))
+    detection_buffer_size_var = tk.StringVar(value=str(cfg.get("detection_buffer_size", 5)))
     movement_mode_var = tk.StringVar(value=str(cfg.get("movement_mode", "proportional")).lower())
     aim_speed_var = tk.StringVar(value=str(cfg.get("aim_speed", 0.35)))
+    aim_speed_x_scale_var = tk.StringVar(value=str(cfg.get("aim_speed_x_scale", 1.0)))
+    aim_speed_y_scale_var = tk.StringVar(value=str(cfg.get("aim_speed_y_scale", 1.0)))
     proportional_max_step_var = tk.StringVar(value=str(cfg.get("proportional_max_step", 80)))
     target_mode_var = tk.StringVar(value=str(cfg.get("target_mode", "closest_to_center")).lower())
+    aim_offset_var = tk.StringVar(value=str(cfg.get("aim_offset", 0.08)))
     humanize_smoothing_var = tk.StringVar(value=str(cfg.get("humanize_smoothing", 0.25)))
     humanize_delay_min_var = tk.StringVar(value=str(cfg.get("humanize_delay_min", 0)))
     humanize_delay_max_var = tk.StringVar(value=str(cfg.get("humanize_delay_max", 0)))
@@ -308,6 +314,27 @@ def run_gui():
     stick_entry.pack(side="left", padx=(0, 8))
     tk.Label(row_stick, text="Stick to one target; higher = less switching (e.g. 70)", font=desc_font, fg="#888", bg="#1a1a2e").pack(side="left")
 
+    row_coast = tk.Frame(aim_frame, bg="#1a1a2e")
+    row_coast.pack(fill="x", pady=4, padx=10)
+    tk.Label(row_coast, text="Coast frames:", font=desc_font, fg="#eaeaea", bg="#1a1a2e", width=14, anchor="w").pack(side="left")
+    coast_entry = ttk.Entry(row_coast, textvariable=coast_frames_var, width=8)
+    coast_entry.pack(side="left", padx=(0, 8))
+    tk.Label(row_coast, text="Keep aiming N frames after detection drops (bridges gaps; 0=off, 5-12 good)", font=desc_font, fg="#888", bg="#1a1a2e").pack(side="left")
+
+    row_pred = tk.Frame(aim_frame, bg="#1a1a2e")
+    row_pred.pack(fill="x", pady=4, padx=10)
+    tk.Label(row_pred, text="Prediction factor:", font=desc_font, fg="#eaeaea", bg="#1a1a2e", width=14, anchor="w").pack(side="left")
+    prediction_entry = ttk.Entry(row_pred, textvariable=prediction_factor_var, width=8)
+    prediction_entry.pack(side="left", padx=(0, 8))
+    tk.Label(row_pred, text="Velocity prediction during coast (0=none, 0.3-0.5=good, 1=full)", font=desc_font, fg="#888", bg="#1a1a2e").pack(side="left")
+
+    row_detbuf = tk.Frame(aim_frame, bg="#1a1a2e")
+    row_detbuf.pack(fill="x", pady=4, padx=10)
+    tk.Label(row_detbuf, text="Detection buffer:", font=desc_font, fg="#eaeaea", bg="#1a1a2e", width=14, anchor="w").pack(side="left")
+    detbuf_entry = ttk.Entry(row_detbuf, textvariable=detection_buffer_size_var, width=8)
+    detbuf_entry.pack(side="left", padx=(0, 8))
+    tk.Label(row_detbuf, text="Median filter over N detections (kills jitter; 3-7 good)", font=desc_font, fg="#888", bg="#1a1a2e").pack(side="left")
+
     # ColorBot-style movement
     move_frame = tk.LabelFrame(root, text=" Movement (ColorBot-style) ", font=title_font, fg="#e94560", bg="#1a1a2e")
     move_frame.pack(fill="x", padx=20, pady=(12, 6))
@@ -322,6 +349,14 @@ def run_gui():
     tk.Label(row_aspeed, text="Aim speed:", font=desc_font, fg="#eaeaea", bg="#1a1a2e", width=14, anchor="w").pack(side="left")
     ttk.Entry(row_aspeed, textvariable=aim_speed_var, width=8).pack(side="left", padx=(0, 8))
     tk.Label(row_aspeed, text="Proportional: 0.2–0.5 typical", font=desc_font, fg="#888", bg="#1a1a2e").pack(side="left")
+    row_xy_scale = tk.Frame(move_frame, bg="#1a1a2e")
+    row_xy_scale.pack(fill="x", pady=4, padx=10)
+    tk.Label(row_xy_scale, text="X / Y scale:", font=desc_font, fg="#eaeaea", bg="#1a1a2e", width=14, anchor="w").pack(side="left")
+    aim_speed_x_scale_entry = ttk.Entry(row_xy_scale, textvariable=aim_speed_x_scale_var, width=6)
+    aim_speed_x_scale_entry.pack(side="left", padx=(0, 4))
+    aim_speed_y_scale_entry = ttk.Entry(row_xy_scale, textvariable=aim_speed_y_scale_var, width=6)
+    aim_speed_y_scale_entry.pack(side="left", padx=(0, 8))
+    tk.Label(row_xy_scale, text="1.0 = same both axes; if only vertical tracks, try X=2 or 3", font=desc_font, fg="#888", bg="#1a1a2e").pack(side="left")
     row_pstep = tk.Frame(move_frame, bg="#1a1a2e")
     row_pstep.pack(fill="x", pady=4, padx=10)
     tk.Label(row_pstep, text="Max step (px):", font=desc_font, fg="#eaeaea", bg="#1a1a2e", width=14, anchor="w").pack(side="left")
@@ -333,6 +368,12 @@ def run_gui():
     target_mode_combo = ttk.Combobox(row_tmode, textvariable=target_mode_var, values=("closest_to_center", "topmost"), state="readonly", width=18)
     target_mode_combo.pack(side="left", padx=(0, 8))
     tk.Label(row_tmode, text="topmost = highest on screen (ColorBot)", font=desc_font, fg="#888", bg="#1a1a2e").pack(side="left")
+    row_aim_off = tk.Frame(move_frame, bg="#1a1a2e")
+    row_aim_off.pack(fill="x", pady=4, padx=10)
+    tk.Label(row_aim_off, text="Aim offset:", font=desc_font, fg="#eaeaea", bg="#1a1a2e", width=14, anchor="w").pack(side="left")
+    aim_offset_entry = ttk.Entry(row_aim_off, textvariable=aim_offset_var, width=8)
+    aim_offset_entry.pack(side="left", padx=(0, 8))
+    tk.Label(row_aim_off, text="0.08=head, 0.0=top of box, 0.5=center, 1.0=feet", font=desc_font, fg="#888", bg="#1a1a2e").pack(side="left")
     row_hu = tk.Frame(move_frame, bg="#1a1a2e")
     row_hu.pack(fill="x", pady=4, padx=10)
     tk.Label(row_hu, text="Humanize:", font=desc_font, fg="#eaeaea", bg="#1a1a2e", width=14, anchor="w").pack(side="left")
@@ -478,6 +519,24 @@ def run_gui():
         except ValueError:
             return 70
 
+    def _coast_frames_int():
+        try:
+            return max(0, int(coast_frames_var.get().strip() or "8"))
+        except ValueError:
+            return 8
+
+    def _prediction_factor_float():
+        try:
+            return max(0.0, min(1.0, float(prediction_factor_var.get().strip() or "0.4")))
+        except ValueError:
+            return 0.4
+
+    def _detection_buffer_size_int():
+        try:
+            return max(1, min(15, int(detection_buffer_size_var.get().strip() or "5")))
+        except ValueError:
+            return 5
+
     def _movement_mode_str():
         d = (movement_mode_var.get() or "proportional").strip().lower()
         return d if d in ("interpolate", "proportional") else "proportional"
@@ -488,6 +547,12 @@ def run_gui():
         except ValueError:
             return 0.35
 
+    def _aim_speed_scale_float(var, default=1.0):
+        try:
+            return max(0.2, min(3.0, float(var.get().strip() or str(default))))
+        except ValueError:
+            return default
+
     def _proportional_max_step_int():
         try:
             return max(10, int(proportional_max_step_var.get().strip() or "80"))
@@ -497,6 +562,12 @@ def run_gui():
     def _target_mode_str():
         d = (target_mode_var.get() or "closest_to_center").strip().lower()
         return d if d in ("closest_to_center", "topmost") else "closest_to_center"
+
+    def _aim_offset_float():
+        try:
+            return max(0.0, min(1.0, float(aim_offset_var.get().strip() or "0.08")))
+        except ValueError:
+            return 0.08
 
     def _humanize_floats():
         try:
@@ -534,8 +605,13 @@ def run_gui():
             "capture_size": _capture_size_int(), "device": _device_str(),
             "detection_confidence": _detection_confidence_float(),
             "target_smoothing": _target_smoothing_float(), "stick_radius": _stick_radius_int(),
+            "coast_frames": _coast_frames_int(), "prediction_factor": _prediction_factor_float(),
+            "detection_buffer_size": _detection_buffer_size_int(),
             "movement_mode": _movement_mode_str(), "aim_speed": _aim_speed_float(),
+            "aim_speed_x_scale": _aim_speed_scale_float(aim_speed_x_scale_var),
+            "aim_speed_y_scale": _aim_speed_scale_float(aim_speed_y_scale_var),
             "proportional_max_step": _proportional_max_step_int(), "target_mode": _target_mode_str(),
+            "aim_offset": _aim_offset_float(),
             "humanize_smoothing": s, "humanize_delay_min": dmin, "humanize_delay_max": dmax, "humanize_jitter": j,
         }
 
@@ -556,8 +632,14 @@ def run_gui():
     detection_confidence_entry.bind("<FocusOut>", lambda e: on_aim_change())
     smoothing_entry.bind("<FocusOut>", lambda e: on_aim_change())
     stick_entry.bind("<FocusOut>", lambda e: on_aim_change())
+    coast_entry.bind("<FocusOut>", lambda e: on_aim_change())
+    prediction_entry.bind("<FocusOut>", lambda e: on_aim_change())
+    detbuf_entry.bind("<FocusOut>", lambda e: on_aim_change())
     movement_combo.bind("<<ComboboxSelected>>", lambda e: on_aim_change())
+    aim_speed_x_scale_entry.bind("<FocusOut>", lambda e: on_aim_change())
+    aim_speed_y_scale_entry.bind("<FocusOut>", lambda e: on_aim_change())
     target_mode_combo.bind("<<ComboboxSelected>>", lambda e: on_aim_change())
+    aim_offset_entry.bind("<FocusOut>", lambda e: on_aim_change())
 
     # Target hold hint
     hint_row = tk.Frame(aim_frame, bg="#1a1a2e")
